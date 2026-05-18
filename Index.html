@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐔 Chicken Jumps!</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
+
+:root {
+  --p1: #FF4757;
+  --p2: #2ED573;
+  --gold: #FFD700;
+  --sky1: #87CEEB;
+  --sky2: #E0F4FF;
+  --font: 'Fredoka One', cursive;
+  --body: 'Nunito', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+body, html {
+  width: 100%; height: 100dvh;
+  overflow: hidden;
+  font-family: var(--font);
+  touch-action: none;
+  position: fixed;
+  background: #87CEEB;
+}
+
+/* ── STARS BG ── */
+#stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.star { position: absolute; border-radius: 50%; background: #fff; animation: twinkle var(--d) ease-in-out infinite alternate; opacity: 0.6; }
+@keyframes twinkle { from { opacity: 0.2; transform: scale(0.8); } to { opacity: 0.9; transform: scale(1.2); } }
+
+/* ── CLOUDS DECO ── */
+.deco-cloud { position: fixed; pointer-events: none; z-index: 0; animation: driftCloud linear infinite; opacity: 0.55; }
+@keyframes driftCloud { from { transform: translateX(-300px); } to { transform: translateX(110vw); } }
+
+#game-container {
+  display: flex; width: 100vw; height: 100%;
+  position: relative; z-index: 1;
+}
+
+.player-zone {
+  flex: 1; width: 50vw; height: 100%;
+  position: relative; display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.player-zone:first-child { border-right: 5px dashed rgba(255,255,255,0.7); }
+
+canvas {
+  width: 100%; flex-grow: 1; display: block;
+  background: linear-gradient(180deg, #b8e4ff 0%, #dff3ff 60%, #f0fffe 100%);
+  min-height: 0;
+}
+
+/* ── HUD ── */
+.hud {
+  position: absolute; top: 10px; left: 8px; right: 8px;
+  display: flex; justify-content: space-between; gap: 4px;
+  pointer-events: none; z-index: 10;
+}
+.hud-card {
+  background: rgba(255,255,255,0.9);
+  padding: 4px 10px; border-radius: 50px;
+  font-family: var(--font); font-size: 0.85rem;
+  color: #333; border: 3px solid rgba(255,255,255,0.6);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.12);
+  white-space: nowrap;
+}
+.hud-score { border-color: #aee0ff; background: linear-gradient(135deg,#fff,#e8f8ff); }
+.hud-combo { background: linear-gradient(135deg,#fff7cc,#ffe680); border-color: #ffc200; color: #c47a00; }
+.hud-height { border-color: #c3f0ca; background: linear-gradient(135deg,#fff,#e5ffe8); color: #1a8a30; }
+
+/* ── CONTROL PANEL ── */
+.control-panel {
+  flex: 0 0 120px;
+  padding: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #f8f9ff 0%, #e8eeff 100%);
+  border-top: 4px solid rgba(255,255,255,0.8);
+  box-shadow: inset 0 4px 12px rgba(0,0,0,0.06);
+  z-index: 15;
+}
+
+.jump-btn {
+  width: 100%; height: 100%;
+  border: none; border-radius: 22px;
+  color: #fff; font-family: var(--font);
+  font-size: 1.4rem; font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.08s;
+  touch-action: none;
+  position: relative; overflow: hidden;
+  letter-spacing: 0.5px;
+}
+.jump-btn::after {
+  content: ''; position: absolute;
+  top: 0; left: -100%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2.5s infinite;
+}
+@keyframes shimmer { to { left: 200%; } }
+
+.p1-btn {
+  background: linear-gradient(160deg, #ff6b7a, #ff2442);
+  box-shadow: 0 7px 0 #b8001f, 0 10px 20px rgba(255,36,66,0.4);
+}
+.p2-btn {
+  background: linear-gradient(160deg, #2ed573, #00b34a);
+  box-shadow: 0 7px 0 #006b2d, 0 10px 20px rgba(0,179,74,0.4);
+}
+.jump-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 rgba(0,0,0,0.3) !important; }
+
+.jump-btn.super-active {
+  animation: superPulse 0.6s infinite alternate;
+  background: linear-gradient(160deg, #ffd700, #ff6b00) !important;
+  box-shadow: 0 7px 0 #aa4400, 0 0 30px rgba(255,180,0,0.8) !important;
+}
+@keyframes superPulse {
+  from { box-shadow: 0 7px 0 #aa4400, 0 0 20px rgba(255,180,0,0.6); transform: scale(1); }
+  to   { box-shadow: 0 7px 0 #aa4400, 0 0 40px rgba(255,100,0,1); transform: scale(1.03); }
+}
+
+/* ── VOCAB POPUP ── */
+.vocab-popup {
+  position: absolute; top: 32%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  background: #fff; border-radius: 20px;
+  padding: 14px 18px; text-align: center;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+  pointer-events: none; opacity: 0; z-index: 30;
+  width: 88%; max-width: 260px;
+  border-top: 6px solid #FFD700;
+}
+.p1-popup { border-top-color: var(--p1); }
+.p2-popup { border-top-color: var(--p2); }
+.vocab-popup.show { animation: popIn 1.6s cubic-bezier(0.175,0.885,0.32,1.275) forwards; }
+.vocab-eng { font-family: var(--font); font-size: 1.3rem; color: #1a1a2e; margin-bottom: 2px; }
+.vocab-rus { font-family: var(--body); font-size: 1rem; color: #666; font-weight: 700; }
+@keyframes popIn {
+  0%   { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+  20%  { transform: translate(-50%,-50%) scale(1.1); opacity: 1; }
+  35%  { transform: translate(-50%,-50%) scale(0.97); opacity: 1; }
+  75%  { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%,-60%) scale(0.85); opacity: 0; }
+}
+
+/* ── PARTICLES (emoji rain) ── */
+.emoji-particle {
+  position: absolute; pointer-events: none; z-index: 25;
+  font-size: 1.6rem; animation: floatUp 1.2s ease-out forwards;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(-120px) scale(0.4) rotate(360deg); opacity: 0; }
+}
+
+/* ── DIVIDER ── */
+#divider-line {
+  position: absolute; left: 50%; top: 0; width: 5px; height: 100%;
+  background: repeating-linear-gradient(180deg, #fff 0px, #fff 14px, transparent 14px, transparent 22px);
+  z-index: 20; transform: translateX(-50%); pointer-events: none;
+}
+
+/* ── PAUSE BTN ── */
+#pause-btn {
+  position: absolute; top: 10px; left: 50%;
+  transform: translateX(-50%); z-index: 50;
+  background: #fff; border: 3px solid #ddd;
+  border-radius: 50%; width: 42px; height: 42px;
+  font-size: 0.85rem; font-weight: 900; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #555; box-shadow: 0 3px 0 #ccc;
+  font-family: var(--font);
+  transition: transform 0.1s;
+}
+#pause-btn:active { transform: translateX(-50%) translateY(2px); }
+
+/* ── OVERLAY ── */
+.overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, rgba(20,20,60,0.93) 0%, rgba(10,40,80,0.96) 100%);
+  backdrop-filter: blur(8px);
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  z-index: 100; color: #fff; text-align: center;
+  padding: 24px 20px;
+}
+
+.overlay-title {
+  font-family: var(--font); font-size: 3rem;
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, #FFD700, #FF6B35, #FF4757);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 12px rgba(255,160,0,0.5));
+  animation: titleBounce 1.2s ease-in-out infinite alternate;
+}
+@keyframes titleBounce {
+  from { transform: translateY(0) rotate(-1deg); }
+  to   { transform: translateY(-6px) rotate(1deg); }
+}
+.overlay-sub {
+  font-family: var(--body); font-size: 1rem;
+  color: #aad4ff; margin-bottom: 6px; font-weight: 700;
+}
+.overlay-desc {
+  font-family: var(--body); font-size: 0.9rem;
+  color: #cce8ff; margin-bottom: 20px; max-width: 380px; line-height: 1.5;
+}
+
+.menu-btn {
+  padding: 14px 44px; font-family: var(--font); font-size: 1.8rem;
+  background: linear-gradient(135deg, #FFD700, #FF8C00);
+  border: 4px solid #fff; color: #1a1a00;
+  border-radius: 50px; cursor: pointer;
+  box-shadow: 0 7px 0 #b85e00, 0 12px 25px rgba(255,140,0,0.5);
+  transition: transform 0.1s;
+  animation: menuPulse 1.5s ease-in-out infinite alternate;
+}
+@keyframes menuPulse {
+  from { box-shadow: 0 7px 0 #b85e00, 0 12px 25px rgba(255,140,0,0.4); }
+  to   { box-shadow: 0 7px 0 #b85e00, 0 12px 40px rgba(255,200,0,0.8); }
+}
+.menu-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 #b85e00; }
+
+.ins-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; margin-bottom: 20px; width: 100%; max-width: 380px;
+}
+.ins-card {
+  background: rgba(255,255,255,0.1);
+  padding: 12px 8px; border-radius: 18px;
+  border: 2px solid rgba(255,255,255,0.2);
+  font-family: var(--body); font-size: 0.9rem;
+  color: #fff;
+}
+.ins-card h3 { font-family: var(--font); font-size: 1.1rem; margin-bottom: 4px; }
+
+.score-compare {
+  font-family: var(--body); font-size: 1rem;
+  color: #aad4ff; margin-bottom: 20px;
+  line-height: 1.8; font-weight: 700;
+}
+.winner-text {
+  font-family: var(--font); font-size: 2rem;
+  color: #FFD700; margin-bottom: 8px;
+  animation: titleBounce 0.8s ease-in-out infinite alternate;
+}
+
+.hidden { display: none !important; }
+
+/* ── COMBO FLASH ── */
+.combo-flash {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  font-family: var(--font); font-size: 2.5rem;
+  color: #FFD700; text-shadow: 0 0 20px #FF8C00, 0 0 40px #FF4500;
+  pointer-events: none; z-index: 35;
+  animation: comboFlash 0.9s cubic-bezier(0.175,0.885,0.32,1.275) forwards;
+}
+@keyframes comboFlash {
+  0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 1; }
+  40%  { transform: translate(-50%,-60%) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%,-90%) scale(0.8); opacity: 0; }
+}
+
+/* ── SCORE TICK ── */
+.score-tick {
+  position: absolute; font-family: var(--font); font-size: 1.4rem;
+  color: #FFD700; text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  pointer-events: none; z-index: 26;
+  animation: scoreTick 0.9s ease-out forwards;
+}
+@keyframes scoreTick {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.7); }
+}
+</style>
+</head>
+<body>
+
+<div id="stars"></div>
+
+<button id="pause-btn">⏸</button>
+
+<div id="game-container">
+  <!-- P1 -->
+  <div id="p1-zone" class="player-zone">
+    <div class="hud">
+      <div class="hud-card hud-score">⭐ <span id="p1-score">0</span></div>
+      <div class="hud-card hud-combo">🔥 <span id="p1-combo">0</span>/5</div>
+      <div class="hud-card hud-height">📍<span id="p1-height">0</span>м</div>
+    </div>
+    <canvas id="p1-canvas"></canvas>
+    <div id="p1-popup" class="vocab-popup p1-popup">
+      <div class="vocab-eng" id="p1-eng">WORD 🍎</div>
+      <div class="vocab-rus" id="p1-rus">Слово</div>
+    </div>
+    <div class="control-panel">
+      <button class="jump-btn p1-btn" id="p1-btn">🐔 ПРЫЖОК (A)</button>
+    </div>
+  </div>
+
+  <div id="divider-line"></div>
+
+  <!-- P2 -->
+  <div id="p2-zone" class="player-zone">
+    <div class="hud">
+      <div class="hud-card hud-score">⭐ <span id="p2-score">0</span></div>
+      <div class="hud-card hud-combo">🔥 <span id="p2-combo">0</span>/5</div>
+      <div class="hud-card hud-height">📍<span id="p2-height">0</span>м</div>
+    </div>
+    <canvas id="p2-canvas"></canvas>
+    <div id="p2-popup" class="vocab-popup p2-popup">
+      <div class="vocab-eng" id="p2-eng">WORD 🍏</div>
+      <div class="vocab-rus" id="p2-rus">Слово</div>
+    </div>
+    <div class="control-panel">
+      <button class="jump-btn p2-btn" id="p2-btn">🐔 ПРЫЖОК (L)</button>
+    </div>
+  </div>
+</div>
+
+<!-- START MENU -->
+<div id="menu-overlay" class="overlay">
+  <div class="overlay-title">🐔 Chicken Jumps!</div>
+  <div class="overlay-sub">English Sky Adventure</div>
+  <div class="overlay-desc">Собери 5 слов подряд для МЕГА-ПРЫЖКА! 🔥<br>Учи английский — прыгай выше! 📚</div>
+  <div class="ins-grid">
+    <div class="ins-card" style="border-color: rgba(255,71,87,0.5)">
+      <h3 style="color: #ff6b7a">🔴 Игрок 1</h3>
+      <p>Кнопка или<br><strong>[ A ]</strong></p>
+    </div>
+    <div class="ins-card" style="border-color: rgba(46,213,115,0.5)">
+      <h3 style="color: #2ed573">🟢 Игрок 2</h3>
+      <p>Кнопка или<br><strong>[ L ]</strong></p>
+    </div>
+  </div>
+  <button class="menu-btn" id="start-btn">🚀 СТАРТ!</button>
+</div>
+
+<!-- PAUSE -->
+<div id="pause-overlay" class="overlay hidden">
+  <div class="overlay-title" style="font-size:2rem">⏸ Пауза</div>
+  <br>
+  <button class="menu-btn" id="resume-btn">▶️ Продолжить</button>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover-overlay" class="overlay hidden">
+  <div class="winner-text" id="winner-text">🏆 Победитель!</div>
+  <div class="score-compare" id="score-compare"></div>
+  <button class="menu-btn" id="restart-btn">🔄 Ещё раз!</button>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   AUDIO ENGINE (Web Audio API — no files)
+═══════════════════════════════════════ */
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type, dur, vol=0.3, delay=0) {
+  const o = AC.createOscillator();
+  const g = AC.createGain();
+  o.connect(g); g.connect(AC.destination);
+  o.type = type; o.frequency.value = freq;
+  const t = AC.currentTime + delay;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.start(t); o.stop(t + dur);
+}
+
+function sfxJump() {
+  playTone(320, 'sine', 0.12, 0.25);
+  playTone(480, 'sine', 0.1, 0.18, 0.06);
+}
+function sfxSuperJump() {
+  [200,300,450,650,900].forEach((f,i) => playTone(f,'sawtooth',0.18,0.22,i*0.04));
+  playTone(1200,'sine',0.3,0.3,0.22);
+}
+function sfxCollect() {
+  playTone(660,'sine',0.12,0.3);
+  playTone(880,'sine',0.12,0.25,0.1);
+  playTone(1100,'sine',0.14,0.2,0.2);
+}
+function sfxCombo() {
+  playTone(440,'triangle',0.08,0.25);
+  playTone(550,'triangle',0.08,0.25,0.08);
+  playTone(660,'triangle',0.1,0.3,0.16);
+  playTone(880,'triangle',0.12,0.35,0.24);
+}
+function sfxFall() {
+  [700,500,350,200].forEach((f,i) => playTone(f,'sawtooth',0.12,0.25,i*0.06));
+}
+function sfxLand() {
+  playTone(120,'sine',0.08,0.3);
+  playTone(80,'sine',0.1,0.2,0.04);
+}
+
+/* ── Background music ── */
+let musicInterval = null;
+const melodyNotes = [523,659,784,1047,784,659,523,392,523,659,523,392,330,392,523];
+let melodyIdx = 0;
+function startMusic() {
+  if (musicInterval) return;
+  musicInterval = setInterval(() => {
+    const f = melodyNotes[melodyIdx % melodyNotes.length];
+    playTone(f, 'sine', 0.22, 0.07);
+    playTone(f/2, 'sine', 0.18, 0.04);
+    melodyIdx++;
+  }, 280);
+}
+function stopMusic() { clearInterval(musicInterval); musicInterval = null; }
+
+/* ═══════════════════════════════════════
+   DECO: STARS + CLOUDS
+═══════════════════════════════════════ */
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 30; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const sz = 2 + Math.random()*4;
+  s.style.cssText = `width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${1.5+Math.random()*3}s`;
+  starsEl.appendChild(s);
+}
+const CLOUD_EMOJIS = ['☁️','🌤️','⛅'];
+for (let i = 0; i < 4; i++) {
+  const c = document.createElement('div');
+  c.className = 'deco-cloud';
+  c.textContent = CLOUD_EMOJIS[i % CLOUD_EMOJIS.length];
+  c.style.cssText = `top:${5+Math.random()*30}%;font-size:${2+Math.random()*2.5}rem;animation-duration:${18+Math.random()*20}s;animation-delay:${-Math.random()*18}s`;
+  document.body.appendChild(c);
+}
+
+/* ═══════════════════════════════════════
+   VOCABULARY
+═══════════════════════════════════════ */
+const vocabulary = [
+  {eng:"ACHIEVEMENT 🏆",rus:"Достижение"},
+  {eng:"KNOWLEDGE 📚",rus:"Знания"},
+  {eng:"SUCCESS 🌟",rus:"Успех"},
+  {eng:"CHALLENGE 🎯",rus:"Вызов"},
+  {eng:"ENVIRONMENT 🌱",rus:"Природа"},
+  {eng:"EDUCATION 🎓",rus:"Образование"},
+  {eng:"LANGUAGE 🗣️",rus:"Язык"},
+  {eng:"IMPROVE 📈",rus:"Улучшать"},
+  {eng:"UNDERSTAND 🧠",rus:"Понимать"},
+  {eng:"VOCABULARY 📖",rus:"Слова"},
+  {eng:"DISCOVER 🔍",rus:"Открывать"},
+  {eng:"JOURNEY 🧳",rus:"Путешествие"},
+  {eng:"HAPPY 😊",rus:"Счастливый"},
+  {eng:"FRIENDSHIP 🤝",rus:"Дружба"},
+  {eng:"BRAVE 🦁",rus:"Смелый"},
+];
+
+let globalPaused = true;
+
+/* ═══════════════════════════════════════
+   CHICKEN DRAWING
+═══════════════════════════════════════ */
+function drawChicken(ctx, x, y, r, color, eyeDir, facingRight, isJumping) {
+  const cr = r; // body radius
+  ctx.save();
+  if (!facingRight) { ctx.translate(x*2, 0); ctx.scale(-1,1); }
+
+  // Shadow
+  ctx.beginPath();
+  ctx.ellipse(x, y + cr*0.85, cr*0.7, cr*0.25, 0, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fill();
+
+  // Body
+  ctx.beginPath();
+  ctx.ellipse(x, y, cr*0.9, cr, 0, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Wing
+  ctx.beginPath();
+  ctx.ellipse(x - cr*0.3, y + cr*0.1, cr*0.45, cr*0.28, -0.3, 0, Math.PI*2);
+  ctx.fillStyle = shadeColor(color, -20);
+  ctx.fill();
+
+  // Head
+  const hx = x + cr*0.35, hy = y - cr*0.6;
+  ctx.beginPath();
+  ctx.arc(hx, hy, cr*0.52, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.stroke();
+
+  // Comb (гребень)
+  ctx.fillStyle = '#FF4444';
+  ctx.beginPath();
+  ctx.ellipse(hx - cr*0.05, hy - cr*0.48, cr*0.18, cr*0.32, -0.2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(hx + cr*0.12, hy - cr*0.52, cr*0.14, cr*0.26, 0.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Wattle
+  ctx.beginPath();
+  ctx.ellipse(hx + cr*0.32, hy + cr*0.22, cr*0.12, cr*0.18, 0.3, 0, Math.PI*2);
+  ctx.fillStyle = '#FF6666';
+  ctx.fill();
+
+  // Beak
+  ctx.beginPath();
+  ctx.moveTo(hx + cr*0.38, hy - cr*0.08);
+  ctx.lineTo(hx + cr*0.6, hy);
+  ctx.lineTo(hx + cr*0.38, hy + cr*0.1);
+  ctx.closePath();
+  ctx.fillStyle = '#FFA000';
+  ctx.fill();
+
+  // Eye white
+  ctx.beginPath();
+  ctx.arc(hx + cr*0.18, hy - cr*0.1, cr*0.18, 0, Math.PI*2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Pupil
+  ctx.beginPath();
+  ctx.arc(hx + cr*0.22 + eyeDir*cr*0.04, hy - cr*0.08, cr*0.1, 0, Math.PI*2);
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fill();
+
+  // Eye shine
+  ctx.beginPath();
+  ctx.arc(hx + cr*0.25, hy - cr*0.12, cr*0.045, 0, Math.PI*2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  // Legs
+  const legY = y + cr*0.75;
+  const legSpread = isJumping ? cr*0.45 : cr*0.2;
+  ctx.strokeStyle = '#FFA000'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  // Left leg
+  ctx.beginPath(); ctx.moveTo(x - legSpread*0.3, legY);
+  ctx.lineTo(x - cr*0.5, legY + cr*0.4 + (isJumping ? cr*0.2 : 0));
+  ctx.stroke();
+  // Right leg
+  ctx.beginPath(); ctx.moveTo(x + legSpread*0.2, legY);
+  ctx.lineTo(x + cr*0.1, legY + cr*0.4 + (isJumping ? cr*0.2 : 0));
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function shadeColor(hex, pct) {
+  // simple darken: expects CSS color name or hex
+  return hex; // placeholder — color variations handled differently
+}
+
+/* ═══════════════════════════════════════
+   CLOUD PLATFORM DRAWING
+═══════════════════════════════════════ */
+function drawCloud(ctx, x, y, w, h, special) {
+  const cx = x + w/2, cy = y + h/2;
+  const rx = w/2, ry = h/2;
+
+  // Glow
+  if (special) {
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 18;
+  }
+
+  // Main cloud body
+  ctx.fillStyle = special
+    ? 'rgba(255,255,220,0.97)'
+    : 'rgba(255,255,255,0.95)';
+
+  // Draw fluffy cloud shape
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx*0.78, ry*1.1, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx - rx*0.35, cy, rx*0.52, ry*0.85, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + rx*0.35, cy, rx*0.52, ry*0.85, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Top bumps
+  ctx.beginPath();
+  ctx.ellipse(cx - rx*0.2, cy - ry*0.6, rx*0.38, ry*0.65, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + rx*0.2, cy - ry*0.55, rx*0.32, ry*0.55, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Outline
+  ctx.strokeStyle = special ? 'rgba(255,200,0,0.5)' : 'rgba(180,210,255,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx*0.78, ry*1.1, 0, 0, Math.PI*2);
+  ctx.stroke();
+
+  
